@@ -1,0 +1,121 @@
+package com.pascal.anime_ku.ui.component
+
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.pascal.anime_ku.model.Anime
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun HomeContent(
+    groupAnime: Map<String, List<Anime>>,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    navigateToAbout: () -> Unit,
+    navigateToDetail: (Long) -> Unit,
+    navigateToFavorite: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.background(MaterialTheme.colorScheme.primary),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SearchBar(
+                query = query,
+                onQueryChange = onQueryChange,
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.primary)
+                    .weight(1f)
+            )
+            OptionMenu(navigateToAbout = navigateToAbout, navigateToFavorite = navigateToFavorite)
+        }
+
+        Box {
+            val scope = rememberCoroutineScope()
+            val listState = rememberLazyListState()
+            val showButton: Boolean by remember {
+                derivedStateOf { listState.firstVisibleItemIndex > 0 }
+            }
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(bottom = 80.dp),
+                modifier = modifier.testTag("AnimeList")
+            ) {
+                if (groupAnime.isEmpty()) {
+                    item {
+                        Text(
+                            text = "Data is empty",
+                            textAlign = TextAlign.Center,
+                            modifier = modifier
+                                .fillMaxSize()
+                                .padding(vertical = 10.dp),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold)
+                        )
+                    }
+                } else {
+                    groupAnime.forEach{(type, anime) ->
+                        stickyHeader {
+                            AnimeHeader(type)
+                        }
+                        items(anime, key = { it.id }) { anime ->
+                            AnimeItem(
+                                anime = anime,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .animateItemPlacement(tween(durationMillis = 100))
+                                    .clickable { navigateToDetail(anime.id) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showButton,
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut() + slideOutVertically(),
+                modifier = Modifier
+                    .padding(bottom = 30.dp)
+                    .align(Alignment.BottomCenter)
+            ) {
+                ScrollToTopButton(
+                    onClick = {
+                        scope.launch {
+                            listState.scrollToItem(index = 0)
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
